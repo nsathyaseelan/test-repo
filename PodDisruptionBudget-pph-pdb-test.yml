@@ -1,0 +1,19 @@
+---
+apiVersion: "policy/v1beta1"
+kind: "PodDisruptionBudget"
+metadata:
+  annotations:
+    gitopsurl: "https://bitbucket.prd.nibr.novartis.net/projects/DENG/repos/pph_ui-zephyr-deploy/browse"
+  uid: "2e46cf04-23a4-4290-80e0-02d30ab38c0a"
+  name: "pph-pdb-test"
+  labels:
+    environment: "test"
+    app.kubernetes.io/name: "pph-app"
+    app.kubernetes.io/instance: "pph-ui-test"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      environment: "test"
+      nibr-app-name: "pph-ui"
+    matchExpressions: []

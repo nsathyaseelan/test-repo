@@ -1,0 +1,121 @@
+---
+kind: "Deployment"
+apiVersion: "apps/v1"
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "3"
+    gitopsurl: "https://bitbucket.prd.nibr.novartis.net/projects/DENG/repos/pph_ui-zephyr-deploy/browse"
+  uid: "717ffa92-81b6-4e29-9d99-f5202132a26b"
+  name: "pph-ui-deploy-test"
+  labels:
+    environment: "test"
+    nibr-app-name: "pph-ui"
+    app.kubernetes.io/name: "pph-ui-test"
+    app.kubernetes.io/instance: "pph-ui-test"
+    app.kubernetes.io/component: "pph-ui-deploy-test"
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      environment: "test"
+      nibr-app-name: "pph-ui"
+    matchExpressions: []
+  strategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: "25%"
+      maxUnavailable: "25%"
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/role: "project_pph_test_read"
+        vault.hashicorp.com/auth-path: "auth/kube3"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/agent-inject-template-secret.properties: "{{ with secret\
+          \ \"secret/projects/pph/test/secrets\" -}} {{ range $k,$v := .Data.data\
+          \ }} export {{ $k }}=\"{{ $v }}\" {{ end }} {{- end }}"
+        gitopsurl: "https://bitbucket.prd.nibr.novartis.net/projects/DENG/repos/pph_ui-zephyr-deploy/browse"
+        vault.hashicorp.com/tls-skip-verify: "true"
+        vault.hashicorp.com/agent-inject-secret-secret.properties: "secret/projects/[[j]]/test/secrets"
+      labels:
+        environment: "test"
+        nibr-app-name: "pph-ui"
+        app.kubernetes.io/name: "pph-ui-test"
+        app.kubernetes.io/instance: "pph-ui-test"
+        app.kubernetes.io/component: "pph-ui-deploy-test"
+    spec:
+      restartPolicy: "Always"
+      terminationGracePeriodSeconds: 60
+      nodeSelector: {}
+      serviceAccountName: "vault-auth"
+      serviceAccount: "vault-auth"
+      schedulerName: "default-scheduler"
+      dnsPolicy: "ClusterFirst"
+      volumes:
+      - name: "reports-data"
+        persistentVolumeClaim:
+          claimName: "reports-data-claim-test"
+      containers:
+      - name: "pph-ui-tomcat"
+        image: "docker-repo.nibr.novartis.net/pph/ppm:test"
+        command: []
+        args: []
+        terminationMessagePath: "/dev/termination-log"
+        terminationMessagePolicy: "File"
+        imagePullPolicy: "Always"
+        ports:
+        - name: "tomcat-port"
+          containerPort: 8080
+          protocol: "TCP"
+        env:
+        - name: "JAVA_OPTS"
+          value: "-Xms256m -Xmx1536m -XX:+UseG1GC"
+        volumeMounts:
+        - name: "reports-data"
+          mountPath: "/usr/share/tomcat9/webapps/reports"
+        livenessProbe:
+          initialDelaySeconds: 60
+          timeoutSeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 5
+          httpGet:
+            path: "/ppm"
+            port: "tomcat-port"
+            scheme: "HTTP"
+        readinessProbe:
+          initialDelaySeconds: 60
+          timeoutSeconds: 3
+          periodSeconds: 10
+          successThreshold: 5
+          failureThreshold: 5
+          httpGet:
+            path: "/ppm/readiness"
+            port: "tomcat-port"
+            scheme: "HTTP"
+        resources:
+          limits:
+            cpu: "4"
+            memory: "2Gi"
+          requests:
+            cpu: "250m"
+            memory: "250Mi"
+      securityContext:
+        supplementalGroups: []
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 10
+            podAffinityTerm:
+              namespaces: []
+              labelSelector:
+                matchLabels:
+                  environment: "test"
+                  nibr-app-name: "pph-ui"
+                matchExpressions: []
+              topologyKey: "kubernetes.io/hostname"
+      imagePullSecrets:
+      - name: "docker-repo.nibr.novartis.net"

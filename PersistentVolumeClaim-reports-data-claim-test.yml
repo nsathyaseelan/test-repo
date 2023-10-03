@@ -1,0 +1,20 @@
+---
+kind: "PersistentVolumeClaim"
+apiVersion: "v1"
+spec:
+  accessModes:
+  - "ReadWriteMany"
+  storageClassName: "nfs-storage"
+  resources:
+    limits: {}
+    requests:
+      storage: "5Gi"
+metadata:
+  annotations:
+    gitopsurl: "https://bitbucket.prd.nibr.novartis.net/projects/DENG/repos/pph_ui-zephyr-deploy/browse"
+  uid: "2b691593-9542-48dc-aa7a-580669108e9c"
+  name: "reports-data-claim-test"
+  labels:
+    environment: "test"
+    app.kubernetes.io/name: "pph-ui-test"
+    app.kubernetes.io/instance: "pph-ui-test"

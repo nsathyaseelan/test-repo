@@ -1,0 +1,32 @@
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  annotations:
+    gitopsurl: "https://bitbucket.prd.nibr.novartis.net/projects/DENG/repos/pph_ui-zephyr-deploy/browse"
+  uid: "36aa3559-4971-463b-877f-afde099278da"
+  name: "pph-ui-service-test"
+  labels:
+    environment: "test"
+    nibr-app-name: "pph-ui"
+    app.kubernetes.io/name: "pph-ui-test"
+    app.kubernetes.io/instance: "pph-ui-test"
+spec:
+  clusterIPs:
+  - "10.10.152.47"
+  ipFamilies:
+  - "IPv4"
+  ipFamilyPolicy: "SingleStack"
+  clusterIP: "10.10.152.47"
+  externalIPs: []
+  loadBalancerSourceRanges: []
+  sessionAffinity: "None"
+  type: "ClusterIP"
+  selector:
+    environment: "test"
+    nibr-app-name: "pph-ui"
+  ports:
+  - name: "pph-ui-port"
+    port: 8080
+    protocol: "TCP"
+    targetPort: 8080
