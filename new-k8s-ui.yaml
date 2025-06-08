@@ -1,0 +1,485 @@
+# k8s-toolkit-production.yaml
+##### production-ready version with RBAC and enhanced features:
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k8s-toolkit
+  labels:
+    name: k8s-toolkit
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-toolkit-sa
+  namespace: k8s-toolkit
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-toolkit-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "nodes", "events", "configmaps", "secrets", "namespaces"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "daemonsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies", "ingresses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-toolkit-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-toolkit-reader
+subjects:
+- kind: ServiceAccount
+  name: k8s-toolkit-sa
+  namespace: k8s-toolkit
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-toolkit-backend
+  namespace: k8s-toolkit
+data:
+  server.js: |
+    const express = require('express');
+    const { exec } = require('child_process');
+    const path = require('path');
+    const app = express();
+    const port = 3000;
+
+    app.use(express.json());
+    app.use(express.static('public'));
+
+    // API endpoint to execute kubectl commands
+    app.post('/api/kubectl', (req, res) => {
+        const { command, namespace } = req.body;
+        
+        // Whitelist of allowed commands for security
+        const allowedCommands = [
+            'get pods', 'get services', 'get deployments', 'get nodes',
+            'describe pod', 'describe service', 'describe deployment',
+            'logs', 'top pods', 'top nodes', 'get events'
+        ];
+        
+        const isAllowed = allowedCommands.some(allowed => command.startsWith(allowed));
+        if (!isAllowed) {
+            return res.status(403).json({ error: 'Command not allowed' });
+        }
+
+        const kubectlCmd = `kubectl ${command} ${namespace ? `-n ${namespace}` : ''}`;
+        
+        exec(kubectlCmd, (error, stdout, stderr) => {
+            if (error) {
+                return res.status(500).json({ error: error.message, stderr });
+            }
+            res.json({ output: stdout });
+        });
+    });
+
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+        res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+    });
+
+    app.listen(port, () => {
+        console.log(`K8s Toolkit backend running on port ${port}`);
+    });
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-toolkit-frontend
+  namespace: k8s-toolkit
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Kubernetes Solutions Toolkit - Production</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                min-height: 100vh;
+                color: #333;
+            }
+            .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+            .header {
+                text-align: center;
+                margin-bottom: 40px;
+                color: white;
+            }
+            .header h1 {
+                font-size: 2.5rem;
+                margin-bottom: 10px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            }
+            .status-bar {
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 30px;
+                color: white;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .toolkit-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: 25px;
+            }
+            .tool-card {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
+                padding: 25px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                transition: transform 0.3s ease;
+            }
+            .tool-card:hover { transform: translateY(-5px); }
+            .tool-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+            .tool-icon {
+                width: 45px;
+                height: 45px;
+                margin-right: 15px;
+                background: linear-gradient(45deg, #1e3c72, #2a5298);
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 18px;
+            }
+            .tool-title {
+                font-size: 1.4rem;
+                font-weight: 600;
+                color: #2c3e50;
+            }
+            .input-group {
+                margin-bottom: 15px;
+            }
+            .input-group label {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 500;
+                color: #555;
+            }
+            .input-group input, .input-group select {
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                font-size: 14px;
+                transition: border-color 0.3s ease;
+            }
+            .input-group input:focus, .input-group select:focus {
+                outline: none;
+                border-color: #1e3c72;
+            }
+            .btn {
+                background: linear-gradient(45deg, #1e3c72, #2a5298);
+                color: white;
+                border: none;
+                padding: 12px 25px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                width: 100%;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(30, 60, 114, 0.3);
+            }
+            .output-area {
+                margin-top: 15px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid #1e3c72;
+                font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+                font-size: 13px;
+                white-space: pre-wrap;
+                max-height: 400px;
+                overflow-y: auto;
+                display: none;
+            }
+            .output-area.show { display: block; }
+            .loading {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #1e3c72;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🚀 Kubernetes Toolkit</h1>
+                <p>Production-ready cluster management interface</p>
+            </div>
+
+            <div class="status-bar">
+                <div>
+                    <strong>Cluster Status:</strong> 
+                    <span id="cluster-status">Connected</span>
+                </div>
+                <div>
+                    <strong>Namespace:</strong> 
+                    <span id="current-namespace">k8s-toolkit</span>
+                </div>
+                <div>
+                    <strong>Last Updated:</strong> 
+                    <span id="last-updated">Never</span>
+                </div>
+            </div>
+
+            <div class="toolkit-grid">
+                <!-- Live Resource Monitor -->
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <div class="tool-icon">📊</div>
+                        <div class="tool-title">Live Resource Monitor</div>
+                    </div>
+                    <div class="input-group">
+                        <label>Resource Type</label>
+                        <select id="resourceType">
+                            <option value="pods">Pods</option>
+                            <option value="services">Services</option>
+                            <option value="deployments">Deployments</option>
+                            <option value="nodes">Nodes</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Namespace (optional)</label>
+                        <input type="text" id="namespace" placeholder="Leave empty for all namespaces">
+                    </div>
+                    <button class="btn" onclick="fetchResources()">
+                        <span id="fetch-btn-text">Fetch Resources</span>
+                    </button>
+                    <div class="output-area" id="resource-output"></div>
+                </div>
+
+                <!-- Pod Diagnostics -->
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <div class="tool-icon">🔧</div>
+                        <div class="tool-title">Pod Diagnostics</div>
+                    </div>
+                    <div class="input-group">
+                        <label>Pod Name</label>
+                        <input type="text" id="pod-name" placeholder="Enter pod name">
+                    </div>
+                    <div class="input-group">
+                        <label>Namespace</label>
+                        <input type="text" id="pod-namespace" placeholder="default">
+                    </div>
+                    <div class="input-group">
+                        <label>Diagnostic Type</label>
+                        <select id="diagnostic-type">
+                            <option value="describe">Describe Pod</option>
+                            <option value="logs">Get Logs</option>
+                            <option value="events">Get Events</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="runDiagnostics()">Run Diagnostics</button>
+                    <div class="output-area" id="diagnostic-output"></div>
+                </div>
+
+                <!-- Cluster Health -->
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <div class="tool-icon">❤️</div>
+                        <div class="tool-title">Cluster Health</div>
+                    </div>
+                    <button class="btn" onclick="checkClusterHealth()">Check Cluster Health</button>
+                    <div class="output-area" id="health-output"></div>
+                </div>
+
+                <!-- Resource Usage -->
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <div class="tool-icon">📈</div>
+                        <div class="tool-title">Resource Usage</div>
+                    </div>
+                    <div class="input-group">
+                        <label>Resource Type</label>
+                        <select id="usage-type">
+                            <option value="nodes">Node Usage</option>
+                            <option value="pods">Pod Usage</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="getResourceUsage()">Get Resource Usage</button>
+                    <div class="output-area" id="usage-output"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // API helper function
+            async function apiCall(command, namespace = '') {
+                const response = await fetch('/api/kubectl', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command, namespace })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return await response.json();
+            }
+
+            // Show loading state
+            function showLoading(buttonId) {
+                const btn = document.getElementById(buttonId);
+                btn.innerHTML = '<div class="loading"></div> Processing...';
+                btn.disabled = true;
+            }
+
+            function hideLoading(buttonId, originalText) {
+                const btn = document.getElementById(buttonId);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+
+            // Fetch resources function
+            async function fetchResources() {
+                const resourceType = document.getElementById('resourceType').value;
+                const namespace = document.getElementById('namespace').value;
+                const output = document.getElementById('resource-output');
+                
+                showLoading('fetch-btn-text');
+                
+                try {
+                    const result = await apiCall(`get ${resourceType} -o wide`, namespace);
+                    output.textContent = result.output;
+                    output.classList.add('show');
+                    updateLastUpdated();
+                } catch (error) {
+                    output.textContent = `Error: ${error.message}`;
+                    output.classList.add('show');
+                } finally {
+                    hideLoading('fetch-btn-text', 'Fetch Resources');
+                }
+            }
+
+            // Run diagnostics
+            async function runDiagnostics() {
+                const podName = document.getElementById('pod-name').value;
+                const namespace = document.getElementById('pod-namespace').value || 'default';
+                const diagnosticType = document.getElementById('diagnostic-type').value;
+                const output = document.getElementById('diagnostic-output');
+                
+                if (!podName) {
+                    output.textContent = 'Please enter a pod name';
+                    output.classList.add('show');
+                    return;
+                }
+                
+                try {
+                    let command;
+                    switch (diagnosticType) {
+                        case 'describe':
+                            command = `describe pod ${podName}`;
+                            break;
+                        case 'logs':
+                            command = `logs ${podName} --tail=100`;
+                            break;
+                        case 'events':
+                            command = `get events --field-selector involvedObject.name=${podName}`;
+                            break;
+                    }
+                    
+                    const result = await apiCall(command, namespace);
+                    output.textContent = result.output;
+                    output.classList.add('show');
+                } catch (error) {
+                    output.textContent = `Error: ${error.message}`;
+                    output.classList.add('show');
+                }
+            }
+
+            // Check cluster health
+            async function checkClusterHealth() {
+                const output = document.getElementById('health-output');
+                
+                try {
+                    const [nodes, pods] = await Promise.all([
+                        apiCall('get nodes'),
+                        apiCall('get pods --all-namespaces')
+                    ]);
+                    
+                    let healthReport = '🏥 CLUSTER HEALTH REPORT\n';
+                    healthReport += '=' .repeat(50) + '\n\n';
+                    healthReport += '📋 NODES STATUS:\n';
+                    healthReport += nodes.output + '\n\n';
+                    healthReport += '📋 PODS OVERVIEW:\n';
+                    healthReport += pods.output;
+                    
+                    output.textContent = healthReport;
+                    output.classList.add('show');
+                } catch (error) {
+                    output.textContent = `Error: ${error.message}`;
+                    output.classList.add('show');
+                }
+            }
+
+            // Get resource usage
+            async function getResourceUsage() {
+                const usageType = document.getElementById('usage-type').value;
+                const output = document.getElementById('usage-output');
+                
+                try {
+                    const result = await apiCall(`top ${usageType}`);
+                    output.textContent = result.output;
+                    output.classList.add('show');
+                } catch (error) {
+                    output.textContent = `Error: ${error.message}\n\nNote: This requires metrics-server to be installed in your cluster.`;
+                    output.classList.add('show');
+                }
+            }
+
+            // Update last updated timestamp
+            function updateLastUpdated() {
+                document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+            }
+
+            // Initialize
+            document.addEventListener('DOMContentLoaded', function() {
