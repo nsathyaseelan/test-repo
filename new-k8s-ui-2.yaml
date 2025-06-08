@@ -1,0 +1,361 @@
+# k8s-toolkit-deployment.yaml
+#####  Quick Deployment (Recommended for Testing)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-toolkit-html
+  namespace: default
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Kubernetes Solutions Toolkit</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                color: #333;
+            }
+
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            .header {
+                text-align: center;
+                margin-bottom: 40px;
+                color: white;
+            }
+
+            .header h1 {
+                font-size: 3rem;
+                margin-bottom: 10px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            }
+
+            .cluster-info {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
+                padding: 20px;
+                margin-bottom: 30px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            }
+
+            .toolkit-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                gap: 25px;
+                margin-bottom: 40px;
+            }
+
+            .tool-card {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
+                padding: 25px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.2);
+                transition: all 0.3s ease;
+            }
+
+            .tool-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 15px 45px rgba(0,0,0,0.2);
+            }
+
+            .tool-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+
+            .tool-icon {
+                width: 40px;
+                height: 40px;
+                margin-right: 15px;
+                background: linear-gradient(45deg, #667eea, #764ba2);
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+            }
+
+            .tool-title {
+                font-size: 1.3rem;
+                font-weight: 600;
+                color: #2c3e50;
+            }
+
+            .input-group {
+                margin-bottom: 15px;
+            }
+
+            .input-group label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 500;
+                color: #555;
+            }
+
+            .input-group input, .input-group select, .input-group textarea {
+                width: 100%;
+                padding: 10px;
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                font-size: 14px;
+                transition: border-color 0.3s ease;
+            }
+
+            .btn {
+                background: linear-gradient(45deg, #667eea, #764ba2);
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                width: 100%;
+            }
+
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            }
+
+            .output-area {
+                margin-top: 15px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid #667eea;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+                white-space: pre-wrap;
+                max-height: 300px;
+                overflow-y: auto;
+                display: none;
+            }
+
+            .output-area.show {
+                display: block;
+            }
+
+            .kubectl-commands {
+                background: #2c3e50;
+                color: #ecf0f1;
+                padding: 15px;
+                border-radius: 8px;
+                font-family: 'Courier New', monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🚀 Kubernetes Solutions Toolkit</h1>
+                <p>Running in your cluster - Real kubectl integration available</p>
+            </div>
+
+            <div class="cluster-info">
+                <h3>🎯 Cluster Integration Commands</h3>
+                <div class="kubectl-commands">
+                    <div>Current Context: <span id="currentContext">Loading...</span></div>
+                    <div>Namespace: <span id="currentNamespace">Loading...</span></div>
+                    <div>Cluster Status: <span id="clusterStatus">Active</span></div>
+                </div>
+            </div>
+
+            <div class="toolkit-grid">
+                <!-- Real Cluster Resource Analyzer -->
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <div class="tool-icon">📊</div>
+                        <div class="tool-title">Live Resource Analyzer</div>
+                    </div>
+                    <div class="input-group">
+                        <label>Namespace</label>
+                        <input type="text" id="analyzeNamespace" placeholder="default">
+                    </div>
+                    <div class="input-group">
+                        <label>Resource Type</label>
+                        <select id="resourceType">
+                            <option value="pods">Pods</option>
+                            <option value="services">Services</option>
+                            <option value="deployments">Deployments</option>
+                            <option value="nodes">Nodes</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="analyzeLiveResources()">Analyze Live Resources</button>
+                    <div class="output-area" id="liveResourceOutput"></div>
+                </div>
+
+                <!-- Kubectl Command Generator -->
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <div class="tool-icon">⚡</div>
+                        <div class="tool-title">kubectl Command Generator</div>
+                    </div>
+                    <div class="input-group">
+                        <label>Action</label>
+                        <select id="kubectlAction">
+                            <option value="get">Get Resources</option>
+                            <option value="describe">Describe Resource</option>
+                            <option value="logs">Get Logs</option>
+                            <option value="exec">Execute Command</option>
+                            <option value="port-forward">Port Forward</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Resource/Pod Name</label>
+                        <input type="text" id="resourceName" placeholder="pod-name">
+                    </div>
+                    <div class="input-group">
+                        <label>Namespace</label>
+                        <input type="text" id="cmdNamespace" placeholder="default">
+                    </div>
+                    <button class="btn" onclick="generateKubectlCommand()">Generate Command</button>
+                    <div class="output-area" id="kubectlOutput"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Initialize cluster context
+            document.getElementById('currentContext').textContent = 'my-cluster';
+            document.getElementById('currentNamespace').textContent = 'default';
+
+            function analyzeLiveResources() {
+                const namespace = document.getElementById('analyzeNamespace').value || 'default';
+                const resourceType = document.getElementById('resourceType').value;
+                const output = document.getElementById('liveResourceOutput');
+                
+                let result = `🔍 Execute this command to analyze ${resourceType}:\n\n`;
+                result += `kubectl get ${resourceType} -n ${namespace} -o wide\n\n`;
+                result += `📊 Additional analysis commands:\n`;
+                result += `kubectl top ${resourceType} -n ${namespace}\n`;
+                result += `kubectl describe ${resourceType} -n ${namespace}\n`;
+                
+                if (resourceType === 'pods') {
+                    result += `\n🚨 Troubleshooting commands:\n`;
+                    result += `kubectl get events -n ${namespace} --sort-by='.lastTimestamp'\n`;
+                    result += `kubectl logs -f <pod-name> -n ${namespace}\n`;
+                }
+                
+                output.textContent = result;
+                output.classList.add('show');
+            }
+
+            function generateKubectlCommand() {
+                const action = document.getElementById('kubectlAction').value;
+                const resourceName = document.getElementById('resourceName').value;
+                const namespace = document.getElementById('cmdNamespace').value || 'default';
+                const output = document.getElementById('kubectlOutput');
+                
+                const commands = {
+                    get: `kubectl get pods ${resourceName ? resourceName : ''} -n ${namespace} -o wide`,
+                    describe: `kubectl describe pod ${resourceName} -n ${namespace}`,
+                    logs: `kubectl logs -f ${resourceName} -n ${namespace}`,
+                    exec: `kubectl exec -it ${resourceName} -n ${namespace} -- /bin/bash`,
+                    'port-forward': `kubectl port-forward ${resourceName} 8080:80 -n ${namespace}`
+                };
+                
+                let result = `⚡ Generated kubectl command:\n\n`;
+                result += `${commands[action]}\n\n`;
+                result += `📋 Copy and paste this command in your terminal to execute.\n`;
+                
+                output.textContent = result;
+                output.classList.add('show');
+            }
+        </script>
+    </body>
+    </html>
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-toolkit
+  namespace: default
+  labels:
+    app: k8s-toolkit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-toolkit
+  template:
+    metadata:
+      labels:
+        app: k8s-toolkit
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html-content
+          mountPath: /usr/share/nginx/html
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: html-content
+        configMap:
+          name: k8s-toolkit-html
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-toolkit-service
+  namespace: default
+spec:
+  selector:
+    app: k8s-toolkit
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k8s-toolkit-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: k8s-toolkit.local  # Change this to your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: k8s-toolkit-service
+            port:
+              number: 80
